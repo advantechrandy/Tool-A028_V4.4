@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PCB 熱應力與形變計算</title>
+    <style>
+        :root {
+            --bg-color: #0f0f0f;
+            --panel-bg: #1a1a1a;
+            --accent-color: #00ff41;
+            --border-color: #333;
+            --text-color: #d1d1d1;
+            --input-bg: #050505;
+            --font-main: 'Segoe UI', 'Roboto', 'Noto Sans TC', sans-serif;
+            --danger-color: #ff4d4d;
+            --warning-color: #ffae00;
+            --code-bg: #000000;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: var(--font-main);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            width: 95%;
+            max-width: 950px;
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+            padding: 30px;
+            position: relative;
+        }
+
+        .container::before {
+            content: "SECURE TERMINAL // THERMAL_ANALYSIS_v4.4";
+            position: absolute;
+            top: 5px; right: 15px;
+            font-size: 10px;
+            color: #444;
+            font-family: monospace;
+        }
+
+        h1 {
+            font-size: 1.4rem;
+            color: var(--accent-color);
+            border-left: 5px solid var(--accent-color);
+            padding-left: 15px;
+            margin-bottom: 25px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .grid-layout {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 25px;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 850px) {
+            .grid-layout { grid-template-columns: 1fr; }
+        }
+
+        .input-panel {
+            display: flex; flex-direction: column; gap: 15px;
+            padding-right: 15px; border-right: 1px solid var(--border-color);
+        }
+
+        @media (max-width: 850px) {
+            .input-panel { border-right: none; padding-right: 0; border-bottom: 1px solid var(--border-color); padding-bottom: 20px; }
+        }
+
+        .input-group { display: flex; flex-direction: column; margin-bottom: 10px; }
+        label { font-size: 0.75rem; color: #777; margin-bottom: 5px; text-transform: uppercase; font-weight: bold; }
+        
+        .dimension-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .dim-input-wrapper {
+            position: relative;
+            flex: 1;
+        }
+        .dim-label {
+            position: absolute;
+            left: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 0.7rem;
+            color: #444;
+            font-family: monospace;
+            pointer-events: none;
+        }
+        
+        input, select {
+            background: var(--input-bg); border: 1px solid #333;
+            color: var(--accent-color); padding: 10px;
+            font-family: 'Courier New', monospace; outline: none;
+            transition: 0.2s;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        
+        .dim-input {
+            padding-left: 25px;
+        }
+
+        input:focus, select:focus { border-color: var(--accent-color); background: #0a0a0a; }
+
+        .slider-container { display: flex; align-items: center; gap: 10px; }
+        input[type="range"] { flex-grow: 1; accent-color: var(--accent-color); cursor: pointer; }
+
+        button {
+            background: var(--accent-color); color: #000;
+            border: none; padding: 15px; font-weight: bold;
+            cursor: pointer; margin-top: 10px; text-transform: uppercase;
+            letter-spacing: 2px; transition: 0.3s;
+        }
+        button:hover { background: #00cc33; box-shadow: 0 0 20px rgba(0, 255, 65, 0.4); }
+
+        .dashboard { display: flex; flex-direction: column; gap: 15px; }
+        .card { background: #111; padding: 20px; border: 1px solid #222; border-left: 4px solid var(--accent-color); }
+        
+        .card-title { font-size: 0.75rem; color: #666; margin-bottom: 10px; display: block; text-transform: uppercase; letter-spacing: 1px; }
+        .card-value { font-size: 1.8rem; font-weight: bold; color: var(--accent-color); font-family: 'Courier New', monospace; }
+        .card-unit { font-size: 0.9rem; margin-left: 8px; color: #444; }
+
+        .res-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+
+        .analysis-footer {
+            margin-top: 15px; padding: 20px;
+            background: rgba(0, 255, 65, 0.03);
+            border: 1px solid #222;
+            border-top: 2px solid var(--accent-color);
+        }
+        .analysis-section { margin-bottom: 15px; }
+        .analysis-header {
+            font-size: 0.9rem; font-weight: bold; color: var(--accent-color);
+            margin-bottom: 8px; text-transform: uppercase;
+        }
+        .analysis-content { font-size: 0.85rem; color: #999; line-height: 1.6; }
+        .highlight { color: var(--warning-color); }
+        .critical { color: var(--danger-color); font-weight: bold; }
+
+        .code-disclosure {
+            margin-top: 20px;
+            border: 1px solid #222;
+            background: var(--code-bg);
+        }
+        .code-disclosure summary {
+            padding: 10px 15px;
+            font-size: 0.75rem;
+            color: #555;
+            cursor: pointer;
+            list-style: none;
+            text-transform: uppercase;
+            background: #111;
+        }
+        .code-disclosure[open] summary { border-bottom: 1px solid #222; color: var(--accent-color); }
+        .code-content {
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.75rem;
+            color: #00aa00;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+
+        .doc-id {
+            position: absolute;
+            bottom: 8px;
+            right: 15px;
+            font-size: 9px;
+            color: #444;
+            font-family: monospace;
+            letter-spacing: 1px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>PCB Thermal Stress Analysis V4.4</h1>
+
+    <div class="grid-layout">
+        <div class="input-panel">
+            <div class="input-group">
+                <label>材料預設 (Material Presets)</label>
+                <select id="materialType" onchange="updateMaterial()">
+                    <option value="fr4">Standard FR-4</option>
+                    <option value="highTg">High-Tg FR-4</option>
+                    <option value="polyimide">Polyimide (Flex)</option>
+                    <option value="ptfe">PTFE (Rogers/High-Freq)</option>
+                    <option value="aluminum">Aluminum MCPCB</option>
+                    <option value="ceramic">Ceramic (Alumina)</option>
+                    <option value="custom">自定義 (Custom)</option>
+                </select>
+            </div>
+
+            <div class="input-group">
+                <label>PCB 尺寸 (長度 L x 寬度 W) mm</label>
+                <div class="dimension-row">
+                    <div class="dim-input-wrapper">
+                        <span class="dim-label">L:</span>
+                        <input type="number" id="sizeX" class="dim-input" value="100">
+                    </div>
+                    <div class="dim-input-wrapper">
+                        <span class="dim-label">W:</span>
+                        <input type="number" id="sizeY" class="dim-input" value="80">
+                    </div>
+                </div>
+            </div>
+
+            <div class="input-group">
+                <label>熱膨脹係數 (&alpha;) ppm/&deg;C</label>
+                <input type="number" id="cte" value="14" step="0.1">
+            </div>
+
+            <div class="input-group">
+                <label>楊氏模量 (E) MPa</label>
+                <input type="number" id="youngs" value="24000" step="100">
+            </div>
+
+            <div class="input-group">
+                <label>溫度差 (&Delta;T) &deg;C</label>
+                <input type="number" id="dT" value="100" step="1">
+            </div>
+
+            <div class="input-group">
+                <label>邊界束縛係數 (Constraint K)</label>
+                <div class="slider-container">
+                    <input type="range" id="kFactor" min="0" max="1" step="0.01" value="0.5">
+                    <span id="kVal" style="width: 40px; color: var(--accent-color); font-family: monospace;">0.5</span>
+                </div>
+            </div>
+
+            <button onclick="calculate()">RUN ANALYSIS</button>
+        </div>
+
+        <div class="dashboard">
+            <div class="card" id="stressCard">
+                <span class="card-title">XY 平面應力 (&sigma;)</span>
+                <span id="resStress" class="card-value">---</span><span class="card-unit">MPa</span>
+            </div>
+            
+            <div class="res-grid">
+                <div class="card">
+                    <span class="card-title">長度形變 (&Delta;L)</span>
+                    <span id="resDeltaL" class="card-value" style="font-size: 1.5rem;">---</span><span class="card-unit">mm</span>
+                </div>
+                <div class="card">
+                    <span class="card-title">寬度形變 (&Delta;W)</span>
+                    <span id="resDeltaW" class="card-value" style="font-size: 1.5rem;">---</span><span class="card-unit">mm</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <span class="card-title">熱應變 (Thermal Strain)</span>
+                <span id="resStrain" class="card-value" style="font-size: 1.2rem;">---</span><span class="card-unit">&epsilon;</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="analysis-footer">
+        <div class="analysis-section">
+            <div class="analysis-header">[1] 可靠度風險判定 (Reliability Risk)</div>
+            <div class="analysis-content">
+                如果計算結果<span class="critical">超過 100 MPa</span>，代表 PCB 結構處於高應力狀態，存在顯著的可靠度風險。
+            </div>
+        </div>
+        <div class="analysis-section">
+            <div class="analysis-header">[2] 潛在失效模式 (Failure Modes)</div>
+            <div class="analysis-content">
+                熱應力過大通常引起：<span class="highlight">銅箔剝離 / 過孔疲勞 / 銲點裂紋</span>。
+            </div>
+        </div>
+    </div>
+
+    <details class="code-disclosure">
+        <summary>▸ 程式邏輯與物理公式參考 (SOURCE CODE REFERENCE)</summary>
+        <div class="code-content">
+// 核心計算邏輯
+function calculate() {
+    const L = parseFloat(sizeX.value);
+    const W = parseFloat(sizeY.value);
+    const alpha = parseFloat(cte.value) * 1e-6;
+    const E = parseFloat(youngs.value);
+    const dT = parseFloat(dT_input.value);
+    const K = parseFloat(kSlider.value);
+    const nu = 0.15; // Poisson's Ratio
+
+    // 1. Thermal Strain: ε = α * ΔT
+    const strain = alpha * dT;
+
+    // 2. Biaxial Stress: σ = K * (E * ε) / (1 - ν)
+    const stress = K * (E * strain) / (1 - nu);
+
+    // 3. Linear Deformation: ΔL = L * ε * (1 - K)
+    const dL = L * strain * (1 - K);
+    const dW = W * strain * (1 - K);
+
+    updateUI(stress, dL, dW, strain);
+}
+        </div>
+    </details>
+
+    <div class="doc-id">CREATED BY RANDY CHEN</div>
+</div>
+
+<script>
+    // 阻擋滑鼠右鍵選單
+    document.addEventListener('contextmenu', function(e) {
+        e.preventDefault();
+    }, false);
+
+    const materials = {
+        fr4: { cte: 14, e: 24000 },
+        highTg: { cte: 12, e: 26000 },
+        polyimide: { cte: 45, e: 5000 },
+        ptfe: { cte: 25, e: 1500 },
+        aluminum: { cte: 23, e: 70000 },
+        ceramic: { cte: 6, e: 300000 }
+    };
+
+    const kSlider = document.getElementById('kFactor');
+    const kDisplay = document.getElementById('kVal');
+
+    document.addEventListener('DOMContentLoaded', () => calculate());
+
+    function updateMaterial() {
+        const type = document.getElementById('materialType').value;
+        if (type !== 'custom') {
+            document.getElementById('cte').value = materials[type].cte;
+            document.getElementById('youngs').value = materials[type].e;
+        }
+        calculate();
+    }
+
+    kSlider.oninput = function() {
+        kDisplay.innerText = this.value;
+        calculate();
+    }
+
+    function calculate() {
+        const L = parseFloat(document.getElementById('sizeX').value);
+        const W = parseFloat(document.getElementById('sizeY').value);
+        const alpha = parseFloat(document.getElementById('cte').value) * 1e-6;
+        const E = parseFloat(document.getElementById('youngs').value);
+        const dT = parseFloat(document.getElementById('dT').value);
+        const K = parseFloat(kSlider.value);
+        const nu = 0.15;
+
+        if(isNaN(L) || isNaN(W) || isNaN(alpha) || isNaN(E) || isNaN(dT)) return;
+
+        const strain = alpha * dT;
+        const actualStress = K * (E * strain) / (1 - nu);
+        const actualDeltaL = L * strain * (1 - K);
+        const actualDeltaW = W * strain * (1 - K);
+
+        document.getElementById('resStress').innerText = actualStress.toFixed(2);
+        document.getElementById('resDeltaL').innerText = actualDeltaL.toFixed(4);
+        document.getElementById('resDeltaW').innerText = actualDeltaW.toFixed(4);
+        document.getElementById('resStrain').innerText = strain.toExponential(4);
+
+        const stressCard = document.getElementById('stressCard');
+        const resStressText = document.getElementById('resStress');
+        if (actualStress > 100) {
+            resStressText.style.color = 'var(--danger-color)';
+            stressCard.style.borderLeftColor = 'var(--danger-color)';
+        } else {
+            resStressText.style.color = 'var(--accent-color)';
+            stressCard.style.borderLeftColor = 'var(--accent-color)';
+        }
+    }
+</script>
+
+</body>
+</html>
